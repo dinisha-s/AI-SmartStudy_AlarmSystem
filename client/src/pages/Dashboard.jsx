@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import AlarmManager from '../components/AlarmManager';
 import StudyTracker from '../components/StudyTracker';
+import AiStudyPlanner from '../components/AiStudyPlanner';
 import { 
   LogOut, 
   Sparkles, 
@@ -12,12 +13,13 @@ import {
   Target, 
   Bell, 
   BookOpen, 
-  TrendingUp 
+  TrendingUp,
+  Calendar
 } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('study'); // 'study' or 'alarms'
+  const [activeTab, setActiveTab] = useState('study'); // 'study', 'alarms', or 'planner'
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-white flex flex-col">
@@ -68,13 +70,13 @@ export default function Dashboard() {
               Welcome back, <span className="gradient-text">{user?.username || 'Student'}</span>!
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Track active study sessions, monitor focus scores with Page Visibility detection, and configure smart alarms.
+              Track active study sessions, generate AI day-wise study schedules with Gemini, and configure smart alarms.
             </p>
           </div>
         </motion.div>
 
         {/* Tab Navigation Switcher */}
-        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+        <div className="flex flex-wrap items-center gap-3 border-b border-white/10 pb-4">
           <button
             onClick={() => setActiveTab('study')}
             className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
@@ -85,6 +87,18 @@ export default function Dashboard() {
           >
             <BookOpen size={16} />
             <span>Study Session Tracker</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('planner')}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'planner'
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
+                : 'glass-panel text-gray-400 hover:text-white border border-white/5'
+            }`}
+          >
+            <Brain size={16} />
+            <span>Gemini AI Study Planner</span>
           </button>
 
           <button
@@ -101,7 +115,9 @@ export default function Dashboard() {
         </div>
 
         {/* Active Tab View */}
-        {activeTab === 'study' ? <StudyTracker /> : <AlarmManager />}
+        {activeTab === 'study' && <StudyTracker />}
+        {activeTab === 'planner' && <AiStudyPlanner />}
+        {activeTab === 'alarms' && <AlarmManager />}
       </main>
     </div>
   );
