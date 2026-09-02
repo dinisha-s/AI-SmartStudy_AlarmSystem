@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import AlarmManager from '../components/AlarmManager';
 import { 
   LogOut, 
   Sparkles, 
@@ -65,7 +66,7 @@ export default function Dashboard() {
               Welcome back, <span className="gradient-text">{user?.username || 'Student'}</span>!
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Your intelligent study alarm system is ready. Track sessions, generate Gemini study plans, and predict your daily focus scores.
+              Your intelligent study alarm system is ready. Configure alarms, solve wake-up math puzzles, and log your wake events.
             </p>
           </div>
         </motion.div>
@@ -111,32 +112,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Feature Modules Quick Access Shell */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-3 hover:border-indigo-500/40 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
-              <Bell size={20} />
-            </div>
-            <h3 className="font-semibold text-lg">Smart Alarm Manager</h3>
-            <p className="text-xs text-gray-400">Phase 6: Set alarms, record wake events, snooze logs, and math puzzles.</p>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-3 hover:border-purple-500/40 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
-              <BookOpen size={20} />
-            </div>
-            <h3 className="font-semibold text-lg">Study Session Tracker</h3>
-            <p className="text-xs text-gray-400">Phase 7: Live timer, break logger, and focus score calculation.</p>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-3 hover:border-pink-500/40 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center font-bold">
-              <Brain size={20} />
-            </div>
-            <h3 className="font-semibold text-lg">Gemini AI Assistant</h3>
-            <p className="text-xs text-gray-400">Phase 13+: Generate study plans, summarize notes, and take quizzes.</p>
-          </div>
-        </div>
+        {/* Alarm Manager Section */}
+        <AlarmManager />
       </main>
     </div>
   );
