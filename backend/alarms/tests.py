@@ -42,3 +42,16 @@ class AlarmAPITests(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(AlarmLog.objects.count(), 1)
+
+    def test_predict_snooze_risk_endpoint(self):
+        url = reverse('alarm_predict_snooze_risk')
+        data = {
+            'hour_of_alarm': 6,
+            'day_of_week': 1,
+            'sleep_duration_prev_night': 6.5,
+            'self_reported_energy': 3
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('snooze_risk', response.data)
+        self.assertIn('risk_level', response.data)
