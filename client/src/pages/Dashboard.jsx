@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import AlarmManager from '../components/AlarmManager';
 import StudyTracker from '../components/StudyTracker';
 import AiStudyPlanner from '../components/AiStudyPlanner';
+import AiTools from '../components/AiTools';
 import { 
   LogOut, 
   Sparkles, 
@@ -14,12 +15,12 @@ import {
   Bell, 
   BookOpen, 
   TrendingUp,
-  Calendar
+  Wand2
 } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('study'); // 'study', 'alarms', or 'planner'
+  const [activeTab, setActiveTab] = useState('study'); // 'study', 'planner', 'tools', or 'alarms'
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-white flex flex-col">
@@ -70,7 +71,7 @@ export default function Dashboard() {
               Welcome back, <span className="gradient-text">{user?.username || 'Student'}</span>!
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Track active study sessions, generate AI day-wise study schedules with Gemini, and configure smart alarms.
+              Track active study sessions, summarize notes, generate MCQ quizzes, ask doubt questions, and configure smart alarms.
             </p>
           </div>
         </motion.div>
@@ -102,6 +103,18 @@ export default function Dashboard() {
           </button>
 
           <button
+            onClick={() => setActiveTab('tools')}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'tools'
+                ? 'bg-pink-600 text-white shadow-lg shadow-pink-500/25'
+                : 'glass-panel text-gray-400 hover:text-white border border-white/5'
+            }`}
+          >
+            <Wand2 size={16} />
+            <span>AI Summarizer, Quizzes & Chatbot</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('alarms')}
             className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
               activeTab === 'alarms'
@@ -117,6 +130,7 @@ export default function Dashboard() {
         {/* Active Tab View */}
         {activeTab === 'study' && <StudyTracker />}
         {activeTab === 'planner' && <AiStudyPlanner />}
+        {activeTab === 'tools' && <AiTools />}
         {activeTab === 'alarms' && <AlarmManager />}
       </main>
     </div>

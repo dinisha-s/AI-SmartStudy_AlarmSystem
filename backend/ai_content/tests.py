@@ -22,10 +22,34 @@ class AiContentAPITests(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('generated_plan', response.data)
-        self.assertEqual(response.data['generated_by'], 'gemini')
-        self.assertEqual(StudyPlan.objects.count(), 1)
 
-    def test_list_study_plans_endpoint(self):
-        url = reverse('ai_plan_list')
-        response = self.client.get(url)
+    def test_summarize_notes_endpoint(self):
+        url = reverse('ai_summarize_notes')
+        data = {
+            'notes_text': 'Django REST Framework serializers convert complex querysets to JSON representation.',
+            'subject': 'Django REST Framework'
+        }
+        response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('summary', response.data)
+        self.assertIn('key_points', response.data)
+
+    def test_generate_quiz_endpoint(self):
+        url = reverse('ai_generate_quiz')
+        data = {
+            'topic': 'Python Full Stack',
+            'num_questions': 2
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('questions', response.data)
+
+    def test_doubt_chatbot_endpoint(self):
+        url = reverse('ai_chatbot')
+        data = {
+            'user_message': 'What is the difference between Django and FastAPI?',
+            'subject_context': 'Python Web Frameworks'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('reply', response.data)

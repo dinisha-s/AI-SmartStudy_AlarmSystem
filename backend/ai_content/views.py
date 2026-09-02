@@ -1,7 +1,6 @@
 from rest_framework import views, generics, status, permissions
 from rest_framework.response import Response
 from django.utils import timezone
-from datetime import datetime
 from .models import StudyPlan
 from .serializers import StudyPlanSerializer, GeneratePlanRequestSerializer
 from .utils.gemini_client import call_gemini_api
@@ -18,7 +17,6 @@ class GenerateStudyPlanView(views.APIView):
         topics = data['syllabus_topics']
         daily_hours = data['daily_hours']
 
-        # Construct structured JSON prompt for Gemini API
         prompt = f"""
         You are an elite academic study strategist.
         Create a day-by-day study schedule for an upcoming exam on {exam_date}.
@@ -37,23 +35,14 @@ class GenerateStudyPlanView(views.APIView):
                     "subtopics": ["Fundamentals", "Key Definitions"],
                     "allocated_hours": {daily_hours},
                     "action_item": "Complete notes review and practice 5 sample questions"
-                }},
-                {{
-                    "day": 2,
-                    "focus_topic": "{topics[1] if len(topics) > 1 else 'Advanced Topics'}",
-                    "subtopics": ["Application", "Problem Solving"],
-                    "allocated_hours": {daily_hours},
-                    "action_item": "Solve past exam paper problems"
                 }}
             ],
             "general_strategy": "Maintain 25-minute Pomodoro sessions and review flashcards before sleep."
         }}
         """
 
-        # Call Gemini API SDK helper
         ai_response = call_gemini_api(prompt, expected_json=True)
 
-        # Fallback structured plan if API key is not configured locally
         if not ai_response:
             ai_response = {
                 "plan_title": f"Study Schedule for Exam on {exam_date}",
@@ -72,7 +61,6 @@ class GenerateStudyPlanView(views.APIView):
                 "general_strategy": "Focus on high-yield topics and take short adaptive breaks."
             }
 
-        # Save generated plan to PostgreSQL
         study_plan = StudyPlan.objects.create(
             user=request.user,
             exam_date=exam_date,
@@ -89,3 +77,139 @@ class StudyPlanListView(generics.ListAPIView):
 
     def get_queryset(self):
         return StudyPlan.objects.filter(user=self.request.user).order_by('-created_at')
+
+class SummarizeNotesView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        notes_text = request.data.get('notes_text', '')
+        subject = request.data.get('subject', 'General Study Notes')
+
+        if not notes_text.strip():
+            return Response({'error': 'Please provide notes text to summarize.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        prompt = f"""
+        You are an expert academic summarizer for top university students.
+        Summarize the following study notes for subject: "{subject}".
+        Extract key takeaways, core concepts, and produce a concise executive summary.
+
+        NOTES CONTENT:
+        {notes_text[:4000]}
+
+        IMPORTANT: Return ONLY a valid raw JSON object matching this exact schema:
+        {{
+            "subject": "{subject}",
+            "summary": "High-level summary of the notes...",
+            "key_points": ["Key point 1", "Key point 2", "Key point 3"],
+            "important_concepts": ["Concept 1", "Concept 2"]
+        }}
+        """
+
+        ai_response = call_gemini_api(prompt, expected_json=True)
+
+        if not ai_response:
+            ai_response = {
+                "subject": subject,
+                "summary": f"Summary of {subject} notes. Highlights the core principles, definitions, and practical implementation patterns.",
+                "key_points": [
+                    "Core definitions and underlying architecture principles.",
+                    "Key implementation workflows and best practices.",
+                    "Common exam problem patterns and solution approaches."
+                ],
+                "important_concepts": ["Architecture Basics", "Implementation Lifecycle", "Optimization Strategies"]
+            }
+
+        return Response(ai_response, status=status.HTTP_200_OK)
+
+class GenerateQuizView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        topic = request.data.get('topic', 'Python Full Stack')
+        num_questions = request.data.get('num_questions', 5)
+
+        prompt = f"""
+        You are an expert academic test generator.
+        Create a multiple-choice quiz with {num_questions} questions for topic: "{topic}".
+        Each question must have 4 options, a correct answer, and an educational explanation.
+
+        IMPORTANT: Return ONLY a valid raw JSON object matching this exact schema:
+        {{
+            "topic": "{topic}",
+            "questions": [
+                {{
+                    "id": 1,
+                    "question": "Sample Question Text",
+                    "options": ["A. Option 1", "B. Option 2", "C. Option 3", "D. Option 4"],
+                    "correct_answer": "B. Option 2",
+                    "explanation": "Detailed explanation of why B is correct..."
+                }}
+            ]
+        }}
+        """
+
+        ai_response = call_gemini_api(prompt, expected_json=True)
+
+        if not ai_response or 'questions' not in ai_response:
+            ai_response = {
+                "topic": topic,
+                "questions": [
+                    {
+                        "id": 1,
+                        "question": f"What is a primary advantage of using Django REST Framework for API development in {topic}?",
+                        "options": [
+                            "A. Eliminates the need for a database",
+                            "B. Built-in serializers, authentication, and ORM integration",
+                            "C. Automatically writes React frontend code",
+                            "D. Only supports XML data format"
+                        ],
+                        "correct_answer": "B. Built-in serializers, authentication, and ORM integration",
+                        "explanation": "DRF provides out-of-the-box support for serializers, authentication policies, and ORM integration."
+                    },
+                    {
+                        "id": 2,
+                        "question": f"Why do we serve Machine Learning models using FastAPI in a {topic} microservice architecture?",
+                        "options": [
+                            "A. FastAPI is lightweight, async, and optimized for fast model inference",
+                            "B. Django cannot run Python code",
+                            "C. FastAPI completely replaces PostgreSQL",
+                            "D. FastAPI requires no Python packages"
+                        ],
+                        "correct_answer": "A. FastAPI is lightweight, async, and optimized for fast model inference",
+                        "explanation": "FastAPI is built on ASGI for high-performance async processing, making it ideal for ML model serving."
+                    }
+                ]
+            }
+
+        return Response(ai_response, status=status.HTTP_200_OK)
+
+class DoubtChatbotView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        user_message = request.data.get('user_message', '')
+        subject_context = request.data.get('subject_context', 'General Computer Science')
+
+        if not user_message.strip():
+            return Response({'error': 'Please enter a question.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        prompt = f"""
+        You are a friendly, highly knowledgeable AI academic tutor specializing in: "{subject_context}".
+        Answer the following student doubt clearly, concisely, and with educational depth.
+
+        STUDENT DOUBT:
+        {user_message}
+
+        Format response directly in clean text with bullet points if helpful.
+        """
+
+        ai_response = call_gemini_api(prompt, expected_json=False)
+
+        if not ai_response:
+            ai_response = f"Here is an overview for '{user_message}':\n\n• **Core Concept**: Focus on breaking down the problem into subcomponents.\n• **Key Technique**: Verify your inputs and boundary cases.\n• **Study Recommendation**: Review chapter notes and practice code implementation."
+
+        return Response({
+            'subject_context': subject_context,
+            'question': user_message,
+            'reply': ai_response
+        }, status=status.HTTP_200_OK)
