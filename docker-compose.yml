@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: smartstudy_postgres
+    environment:
+      POSTGRES_DB: smartstudy_db
+      POSTGRES_USER: smartstudy_user
+      POSTGRES_PASSWORD: smartstudy_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: smartstudy_redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+    container_name: smartstudy_backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=production_secret_key_change_in_env
+      - DEBUG=1
+      - DB_NAME=smartstudy_db
+      - DB_USER=smartstudy_user
+      - DB_PASSWORD=smartstudy_password
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - ML_SERVICE_URL=http://ml-service:8001
+    depends_on:
+      - db
+      - redis
+
+  ml-service:
+    build: ./ml-service
+    container_name: smartstudy_ml_service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ml-service:/app
+
+  client:
+    build: ./client
+    container_name: smartstudy_client
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
