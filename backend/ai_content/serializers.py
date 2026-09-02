@@ -11,3 +11,13 @@ class GeneratePlanRequestSerializer(serializers.Serializer):
     exam_date = serializers.DateField()
     syllabus_topics = serializers.ListField(child=serializers.CharField(max_length=150), min_length=1)
     daily_hours = serializers.IntegerField(min_value=1, max_value=16, default=4)
+
+class FlashcardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Flashcard
+        fields = (
+            'id', 'topic', 'question', 'answer', 
+            'next_review_date', 'review_interval', 
+            'easiness_factor', 'repetitions', 'created_at'
+        )
+        read_only_fields = ('id', 'created_at', 'next_review_date', 'review_interval', 'easiness_factor', 'repetitions')

@@ -18,7 +18,9 @@ class Flashcard(models.Model):
     question = models.TextField()
     answer = models.TextField()
     next_review_date = models.DateField(null=True, blank=True)
-    review_interval = models.PositiveIntegerField(default=1)
+    review_interval = models.PositiveIntegerField(default=1) # days
+    easiness_factor = models.DecimalField(max_digits=4, decimal_places=2, default=2.50) # SM-2 EF
+    repetitions = models.PositiveIntegerField(default=0) # SM-2 repetition count
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

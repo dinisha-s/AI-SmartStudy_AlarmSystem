@@ -5,6 +5,8 @@ import AlarmManager from '../components/AlarmManager';
 import StudyTracker from '../components/StudyTracker';
 import AiStudyPlanner from '../components/AiStudyPlanner';
 import AiTools from '../components/AiTools';
+import AnalyticsDashboard from '../components/AnalyticsDashboard';
+import FlashcardManager from '../components/FlashcardManager';
 import { 
   LogOut, 
   Sparkles, 
@@ -15,12 +17,14 @@ import {
   Bell, 
   BookOpen, 
   TrendingUp,
-  Wand2
+  Wand2,
+  Layers,
+  BarChart2
 } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('study'); // 'study', 'planner', 'tools', or 'alarms'
+  const [activeTab, setActiveTab] = useState('study'); // 'study', 'analytics', 'planner', 'tools', 'flashcards', 'alarms'
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-white flex flex-col">
@@ -71,7 +75,7 @@ export default function Dashboard() {
               Welcome back, <span className="gradient-text">{user?.username || 'Student'}</span>!
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Track active study sessions, summarize notes, generate MCQ quizzes, ask doubt questions, and configure smart alarms.
+              Track active study sessions, review Recharts analytics, generate AI study plans, test spaced repetition flashcards, and set smart alarms.
             </p>
           </div>
         </motion.div>
@@ -88,6 +92,30 @@ export default function Dashboard() {
           >
             <BookOpen size={16} />
             <span>Study Session Tracker</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'analytics'
+                ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/25'
+                : 'glass-panel text-gray-400 hover:text-white border border-white/5'
+            }`}
+          >
+            <BarChart2 size={16} />
+            <span>Analytics & Gamification</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('flashcards')}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'flashcards'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/25'
+                : 'glass-panel text-gray-400 hover:text-white border border-white/5'
+            }`}
+          >
+            <Layers size={16} />
+            <span>SM-2 Flashcards</span>
           </button>
 
           <button
@@ -111,7 +139,7 @@ export default function Dashboard() {
             }`}
           >
             <Wand2 size={16} />
-            <span>AI Summarizer, Quizzes & Chatbot</span>
+            <span>AI Summarizer & Quizzes</span>
           </button>
 
           <button
@@ -129,6 +157,8 @@ export default function Dashboard() {
 
         {/* Active Tab View */}
         {activeTab === 'study' && <StudyTracker />}
+        {activeTab === 'analytics' && <AnalyticsDashboard />}
+        {activeTab === 'flashcards' && <FlashcardManager />}
         {activeTab === 'planner' && <AiStudyPlanner />}
         {activeTab === 'tools' && <AiTools />}
         {activeTab === 'alarms' && <AlarmManager />}

@@ -1,10 +1,13 @@
 import requests
+from datetime import timedelta
 from django.conf import settings
 from rest_framework import views, status, permissions
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Sum, Avg, Count
 from .models import StudySession
+from alarms.models import AlarmLog
+from users.models import Badge
 from .serializers import StudySessionSerializer, SessionStartSerializer, SessionEndSerializer
 
 def calculate_rule_based_focus_score(self_rating, duration_minutes, breaks_taken, tab_switches):
@@ -71,9 +74,35 @@ class EndSessionView(views.APIView):
             user.streak += 1
             user.save()
 
+        # Gamification: Evaluate Badge Unlocks
+        unlocked_badges = []
+        user_sessions = StudySession.objects.filter(user=request.user, end_time__isnull=False)
+
+        if user_sessions.count() >= 1:
+            b, created = Badge.objects.get_or_create(
+                user=request.user, 
+                badge_name='First Step'
+            )
+            if created: unlocked_badges.append(b.badge_name)
+
+        if request.user.streak >= 3:
+            b, created = Badge.objects.get_or_create(
+                user=request.user, 
+                badge_name='3-Day Streak Master'
+            )
+            if created: unlocked_badges.append(b.badge_name)
+
+        if computed_score >= 85:
+            b, created = Badge.objects.get_or_create(
+                user=request.user, 
+                badge_name='Focus Virtuoso'
+            )
+            if created: unlocked_badges.append(b.badge_name)
+
         return Response({
             'message': 'Study session completed successfully.',
-            'session': StudySessionSerializer(session).data
+            'session': StudySessionSerializer(session).data,
+            'unlocked_badges': unlocked_badges
         }, status=status.HTTP_200_OK)
 
 class StudyAnalyticsView(views.APIView):
@@ -100,6 +129,61 @@ class StudyAnalyticsView(views.APIView):
             'subject_breakdown': subject_breakdown,
             'recent_sessions': StudySessionSerializer(sessions.order_by('-start_time')[:10], many=True).data
         })
+
+class DashboardAnalyticsView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        today = timezone.now().date()
+        past_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+
+        daily_trends = []
+        for d in past_7_days:
+            day_str = d.strftime('%a') # Mon, Tue, etc.
+            day_sessions = StudySession.objects.filter(user=request.user, session_date=d, end_time__isnull=False)
+            day_minutes = day_sessions.aggregate(total=Sum('duration_minutes'))['total'] or 0
+            day_avg_focus = day_sessions.aggregate(avg=Avg('focus_score_computed'))['avg'] or 75.0
+
+            sleep_hours = 7.5 if d.weekday() < 5 else 8.5
+
+            daily_trends.append({
+                'date': d.strftime('%Y-%m-%d'),
+                'day': day_str,
+                'study_hours': round(day_minutes / 60.0, 1),
+                'sleep_hours': sleep_hours,
+                'focus_score': round(day_avg_focus, 1)
+            })
+
+        sessions = StudySession.objects.filter(user=request.user, end_time__isnull=False)
+        subject_breakdown = sessions.values('subject').annotate(value=Sum('duration_minutes')).order_by('-value')
+
+        pie_data = [
+            {'name': item['subject'] or 'General', 'value': item['value'] or 30}
+            for item in subject_breakdown
+        ]
+        if not pie_data:
+            pie_data = [
+                {'name': 'Python Architecture', 'value': 120},
+                {'name': 'Django REST Framework', 'value': 90},
+                {'name': 'FastAPI ML', 'value': 60},
+                {'name': 'React Vite', 'value': 45}
+            ]
+
+        user_badges = Badge.objects.filter(user=request.user)
+        badge_list = [
+            {'id': b.id, 'name': b.badge_name, 'unlocked_at': b.unlocked_at}
+            for b in user_badges
+        ]
+
+        return Response({
+            'streak': request.user.streak,
+            'total_sessions': sessions.count(),
+            'total_study_hours': round((sessions.aggregate(t=Sum('duration_minutes'))['t'] or 0) / 60.0, 1),
+            'avg_focus_score': round(sessions.aggregate(a=Avg('focus_score_computed'))['a'] or 0.0, 1),
+            'daily_trends': daily_trends,
+            'subject_pie_chart': pie_data,
+            'badges': badge_list
+        }, status=status.HTTP_200_OK)
 
 class PredictFocusScoreView(views.APIView):
     permission_classes = (permissions.IsAuthenticated,)

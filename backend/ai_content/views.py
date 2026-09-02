@@ -1,9 +1,48 @@
+from datetime import timedelta
 from rest_framework import views, generics, status, permissions
 from rest_framework.response import Response
 from django.utils import timezone
-from .models import StudyPlan
-from .serializers import StudyPlanSerializer, GeneratePlanRequestSerializer
+from .models import StudyPlan, Flashcard
+from .serializers import StudyPlanSerializer, GeneratePlanRequestSerializer, FlashcardSerializer
 from .utils.gemini_client import call_gemini_api
+
+def calculate_sm2_review(flashcard, quality_rating):
+    """
+    SuperMemo-2 (SM-2) Spaced Repetition Algorithm implementation.
+    quality_rating: integer from 0 (blackout) to 5 (perfect recall).
+    """
+    q = max(0, min(5, int(quality_rating)))
+    ef = float(flashcard.easiness_factor)
+    reps = flashcard.repetitions
+    interval = flashcard.review_interval
+
+    if q < 3:
+        # Failed recall: reset repetitions and interval to 1 day
+        reps = 0
+        interval = 1
+    else:
+        # Successful recall: increment repetitions and compute next interval
+        if reps == 0:
+            interval = 1
+        elif reps == 1:
+            interval = 6
+        else:
+            interval = max(1, round(interval * ef))
+        reps += 1
+
+    # Update Easiness Factor (EF)
+    new_ef = ef + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
+    new_ef = max(1.30, round(new_ef, 2))
+
+    next_date = timezone.now().date() + timedelta(days=interval)
+
+    flashcard.easiness_factor = new_ef
+    flashcard.repetitions = reps
+    flashcard.review_interval = interval
+    flashcard.next_review_date = next_date
+    flashcard.save()
+
+    return flashcard
 
 class GenerateStudyPlanView(views.APIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -165,18 +204,6 @@ class GenerateQuizView(views.APIView):
                         ],
                         "correct_answer": "B. Built-in serializers, authentication, and ORM integration",
                         "explanation": "DRF provides out-of-the-box support for serializers, authentication policies, and ORM integration."
-                    },
-                    {
-                        "id": 2,
-                        "question": f"Why do we serve Machine Learning models using FastAPI in a {topic} microservice architecture?",
-                        "options": [
-                            "A. FastAPI is lightweight, async, and optimized for fast model inference",
-                            "B. Django cannot run Python code",
-                            "C. FastAPI completely replaces PostgreSQL",
-                            "D. FastAPI requires no Python packages"
-                        ],
-                        "correct_answer": "A. FastAPI is lightweight, async, and optimized for fast model inference",
-                        "explanation": "FastAPI is built on ASGI for high-performance async processing, making it ideal for ML model serving."
                     }
                 ]
             }
@@ -206,10 +233,43 @@ class DoubtChatbotView(views.APIView):
         ai_response = call_gemini_api(prompt, expected_json=False)
 
         if not ai_response:
-            ai_response = f"Here is an overview for '{user_message}':\n\n• **Core Concept**: Focus on breaking down the problem into subcomponents.\n• **Key Technique**: Verify your inputs and boundary cases.\n• **Study Recommendation**: Review chapter notes and practice code implementation."
+            ai_response = f"Here is an overview for '{user_message}':\n\n• **Core Concept**: Focus on breaking down the problem into subcomponents.\n• **Key Technique**: Verify your inputs and boundary cases."
 
         return Response({
             'subject_context': subject_context,
             'question': user_message,
             'reply': ai_response
+        }, status=status.HTTP_200_OK)
+
+class FlashcardListCreateView(generics.ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = FlashcardSerializer
+
+    def get_queryset(self):
+        return Flashcard.objects.filter(user=self.request.user).order_by('next_review_date')
+
+    def perform_create(self, serializer):
+        serializer.save(
+            user=self.request.user,
+            next_review_date=timezone.now().date(),
+            review_interval=1,
+            easiness_factor=2.50,
+            repetitions=0
+        )
+
+class FlashcardReviewView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, pk):
+        try:
+            flashcard = Flashcard.objects.get(pk=pk, user=request.user)
+        except Flashcard.DoesNotExist:
+            return Response({'error': 'Flashcard not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        rating = request.data.get('rating', 3)
+        updated_card = calculate_sm2_review(flashcard, rating)
+
+        return Response({
+            'message': 'Flashcard review recorded via SM-2 algorithm.',
+            'flashcard': FlashcardSerializer(updated_card).data
         }, status=status.HTTP_200_OK)
