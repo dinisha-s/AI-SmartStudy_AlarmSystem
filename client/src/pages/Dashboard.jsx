@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import AlarmManager from '../components/AlarmManager';
+import StudyTracker from '../components/StudyTracker';
 import { 
   LogOut, 
   Sparkles, 
@@ -16,6 +17,7 @@ import {
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('study'); // 'study' or 'alarms'
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-white flex flex-col">
@@ -66,54 +68,40 @@ export default function Dashboard() {
               Welcome back, <span className="gradient-text">{user?.username || 'Student'}</span>!
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Your intelligent study alarm system is ready. Configure alarms, solve wake-up math puzzles, and log your wake events.
+              Track active study sessions, monitor focus scores with Page Visibility detection, and configure smart alarms.
             </p>
           </div>
         </motion.div>
 
-        {/* Overview Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Target Study</span>
-              <Target size={18} className="text-indigo-400" />
-            </div>
-            <div className="text-2xl font-bold">{user?.daily_study_hours || 4} hrs/day</div>
-            <p className="text-xs text-gray-500">Daily goal set</p>
-          </div>
+        {/* Tab Navigation Switcher */}
+        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+          <button
+            onClick={() => setActiveTab('study')}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'study'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'glass-panel text-gray-400 hover:text-white border border-white/5'
+            }`}
+          >
+            <BookOpen size={16} />
+            <span>Study Session Tracker</span>
+          </button>
 
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Current Streak</span>
-              <Flame size={18} className="text-orange-400" />
-            </div>
-            <div className="text-2xl font-bold text-orange-400">{user?.streak || 0} Days</div>
-            <p className="text-xs text-gray-500">Consistent study logging</p>
-          </div>
-
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Wake Window</span>
-              <Clock size={18} className="text-purple-400" />
-            </div>
-            <div className="text-xl font-bold">
-              {user?.wake_window_start || '06:30'} - {user?.wake_window_end || '07:30'}
-            </div>
-            <p className="text-xs text-gray-500">Smart alarm window</p>
-          </div>
-
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Snooze Risk AI</span>
-              <TrendingUp size={18} className="text-emerald-400" />
-            </div>
-            <div className="text-2xl font-bold text-emerald-400">Low Risk</div>
-            <p className="text-xs text-gray-500">FastAPI ML Ready</p>
-          </div>
+          <button
+            onClick={() => setActiveTab('alarms')}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'alarms'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'glass-panel text-gray-400 hover:text-white border border-white/5'
+            }`}
+          >
+            <Bell size={16} />
+            <span>Smart Alarms</span>
+          </button>
         </div>
 
-        {/* Alarm Manager Section */}
-        <AlarmManager />
+        {/* Active Tab View */}
+        {activeTab === 'study' ? <StudyTracker /> : <AlarmManager />}
       </main>
     </div>
   );
