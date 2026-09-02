@@ -13,14 +13,12 @@ class StudySessionAPITests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_start_and_end_study_session(self):
-        # 1. Start Session
         start_url = reverse('study_start')
         start_response = self.client.post(start_url, {'subject': 'Python Backend Architecture'}, format='json')
         self.assertEqual(start_response.status_code, status.HTTP_201_CREATED)
         self.assertIn('session_id', start_response.data)
         session_id = start_response.data['session_id']
 
-        # 2. End Session
         end_url = reverse('study_end')
         end_data = {
             'session_id': session_id,
@@ -31,7 +29,6 @@ class StudySessionAPITests(APITestCase):
         }
         end_response = self.client.post(end_url, end_data, format='json')
         self.assertEqual(end_response.status_code, status.HTTP_200_OK)
-        # Base: 4*20=80, Breaks penalty: 1*5=5, Tab switch penalty: 2*3=6, Bonus: +5 => 80 - 5 - 6 + 5 = 74
         self.assertEqual(float(end_response.data['session']['focus_score_computed']), 74.0)
 
     def test_study_analytics_endpoint(self):
@@ -39,3 +36,26 @@ class StudySessionAPITests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('total_study_hours', response.data)
+
+    def test_predict_focus_score_proxy(self):
+        url = reverse('study_predict_focus')
+        data = {
+            'session_duration': 45,
+            'breaks_taken': 1,
+            'time_of_day_hour': 10,
+            'tab_switches': 2,
+            'self_rating': 4
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('predicted_focus_score', response.data)
+
+    def test_predict_best_slot_proxy(self):
+        url = reverse('study_predict_slot')
+        data = {
+            'subject_type': 1, # Numerical / Math
+            'avg_focus_history': 85.0
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('best_slot_name', response.data)

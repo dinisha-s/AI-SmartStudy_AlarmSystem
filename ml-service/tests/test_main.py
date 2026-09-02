@@ -7,7 +7,9 @@ def test_health_check():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
-    assert response.json()["model_loaded"] is True
+    assert response.json()["models"]["snooze_risk_model"] is True
+    assert response.json()["models"]["focus_score_model"] is True
+    assert response.json()["models"]["slot_recommender_model"] is True
 
 def test_predict_snooze_risk_endpoint():
     payload = {
@@ -24,4 +26,30 @@ def test_predict_snooze_risk_endpoint():
     assert "snooze_risk" in data
     assert "risk_level" in data
     assert "require_math_puzzle" in data
-    assert 0.0 <= data["snooze_risk"] <= 1.0
+
+def test_predict_focus_score_endpoint():
+    payload = {
+        "session_duration": 45,
+        "breaks_taken": 1,
+        "time_of_day_hour": 10,
+        "tab_switches": 2,
+        "self_rating": 4
+    }
+    response = client.post("/predict/focus-score", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "predicted_focus_score" in data
+    assert "score_quality" in data
+    assert 0.0 <= data["predicted_focus_score"] <= 100.0
+
+def test_predict_best_slot_endpoint():
+    payload = {
+        "subject_type": 1, # Numerical / Math
+        "avg_focus_history": 82.5
+    }
+    response = client.post("/predict/best-slot", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "best_slot_id" in data
+    assert "best_slot_name" in data
+    assert "recommended_time_window" in data

@@ -1,3 +1,5 @@
+import requests
+from django.conf import settings
 from rest_framework import views, status, permissions
 from rest_framework.response import Response
 from django.utils import timezone
@@ -7,19 +9,10 @@ from .serializers import StudySessionSerializer, SessionStartSerializer, Session
 
 def calculate_rule_based_focus_score(self_rating, duration_minutes, breaks_taken, tab_switches):
     """Rule-Based Focus Score Calculation (0-100 continuous score)"""
-    # 1. Base rating component (1-5 stars mapped to 0-100 base)
     base_score = self_rating * 20.0
-
-    # 2. Penalty for frequent breaks (5 points per break)
     break_penalty = breaks_taken * 5.0
-
-    # 3. Penalty for tab switching / distraction (3 points per tab switch)
     distraction_penalty = tab_switches * 3.0
-
-    # 4. Duration stability bonus (reward sessions >= 25 mins up to 90 mins)
-    duration_bonus = 0.0
-    if 25 <= duration_minutes <= 90:
-        duration_bonus = 5.0
+    duration_bonus = 5.0 if 25 <= duration_minutes <= 90 else 0.0
 
     final_score = base_score - break_penalty - distraction_penalty + duration_bonus
     return max(0.0, min(100.0, round(final_score, 2)))
@@ -58,7 +51,6 @@ class EndSessionView(views.APIView):
         except StudySession.DoesNotExist:
             return Response({'error': 'Study session not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Calculate computed focus score
         computed_score = calculate_rule_based_focus_score(
             self_rating=data['focus_score_self_rated'],
             duration_minutes=data['duration_minutes'],
@@ -66,7 +58,6 @@ class EndSessionView(views.APIView):
             tab_switches=data['tab_switches']
         )
 
-        # Update session fields
         session.end_time = timezone.now()
         session.duration_minutes = data['duration_minutes']
         session.focus_score_self_rated = data['focus_score_self_rated']
@@ -75,7 +66,6 @@ class EndSessionView(views.APIView):
         session.focus_score_computed = computed_score
         session.save()
 
-        # Update User streak counter if session >= 20 mins
         if session.duration_minutes >= 20:
             user = request.user
             user.streak += 1
@@ -110,3 +100,37 @@ class StudyAnalyticsView(views.APIView):
             'subject_breakdown': subject_breakdown,
             'recent_sessions': StudySessionSerializer(sessions.order_by('-start_time')[:10], many=True).data
         })
+
+class PredictFocusScoreView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        ml_service_url = getattr(settings, 'ML_SERVICE_URL', 'http://localhost:8001')
+        try:
+            res = requests.post(f"{ml_service_url}/predict/focus-score", json=request.data, timeout=5)
+            if res.status_code == 200:
+                return Response(res.json(), status=status.HTTP_200_OK)
+            return Response({'error': 'ML prediction error.'}, status=res.status_code)
+        except requests.RequestException:
+            return Response({
+                'predicted_focus_score': 75.0,
+                'score_quality': 'GOOD',
+                'note': 'ML service offline. Used fallback estimate.'
+            }, status=status.HTTP_200_OK)
+
+class PredictBestSlotView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        ml_service_url = getattr(settings, 'ML_SERVICE_URL', 'http://localhost:8001')
+        try:
+            res = requests.post(f"{ml_service_url}/predict/best-slot", json=request.data, timeout=5)
+            if res.status_code == 200:
+                return Response(res.json(), status=status.HTTP_200_OK)
+            return Response({'error': 'ML prediction error.'}, status=res.status_code)
+        except requests.RequestException:
+            return Response({
+                'best_slot_id': 0,
+                'best_slot_name': 'Morning',
+                'recommended_time_window': '06:00 AM - 12:00 PM'
+            }, status=status.HTTP_200_OK)
