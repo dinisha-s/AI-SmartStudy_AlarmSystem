@@ -13,12 +13,10 @@ venv.bak/
 *.log
 
 # Machine Learning Models & Datasets
-*.pkl
 *.joblib
 *.h5
 *.onnx
-ml-service/models/*.pkl
-!ml-service/models/.gitkeep
+!ml-service/models/*.pkl
 
 # Node / React
 node_modules/
