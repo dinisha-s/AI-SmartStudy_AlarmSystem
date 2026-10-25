@@ -60,7 +60,15 @@ export const AuthProvider = ({ children }) => {
       setUser(newUser);
       return newUser;
     } catch (err) {
-      const errorMsg = err.response?.data?.password?.[0] || err.response?.data?.email?.[0] || 'Registration failed.';
+      const data = err.response?.data;
+      let errorMsg = 'Registration failed.';
+      if (data && typeof data === 'object') {
+        const firstKey = Object.keys(data)[0];
+        if (firstKey) {
+          const val = data[firstKey];
+          errorMsg = Array.isArray(val) ? `${firstKey}: ${val[0]}` : (typeof val === 'string' ? val : errorMsg);
+        }
+      }
       setError(errorMsg);
       throw new Error(errorMsg);
     }
